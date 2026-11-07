@@ -1,0 +1,91 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only — ENJAMBRE, Mauricio Vásquez Arias, Universidad EAFIT -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ENJAMBRE · firmware para el M-VAVE FM-1</title>
+<style>
+  :root { --bg:#0b0d0c; --panel:#131715; --line:#26302b; --fg:#e6e2d6; --dim:#8d978f; --amber:#f2b63c; --turq:#3fd1b8; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:44px 18px 60px; }
+  h1 { font:600 34px/1.1 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing:.2em; margin:0 0 10px; }
+  h1 span { color:var(--amber); }
+  h2 { font:600 13px ui-monospace, Menlo, monospace; letter-spacing:.16em; text-transform:uppercase; color:var(--dim); margin:36px 0 12px; }
+  .lead { font-size:18px; color:var(--fg); max-width:620px; }
+  .dim { color:var(--dim); }
+  a { color:inherit; }
+  .btns { display:flex; flex-wrap:wrap; gap:10px; margin:22px 0 6px; }
+  .btn { display:inline-block; text-decoration:none; font:600 14px ui-monospace, Menlo, monospace; letter-spacing:.08em; padding:12px 20px; border-radius:30px; border:1px solid var(--line); }
+  .btn.main { background:var(--amber); color:#111; border-color:var(--amber); }
+  .grid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:12px; }
+  @media (max-width:640px) { .grid { grid-template-columns:1fr; } }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .card b { font-family:ui-monospace, Menlo, monospace; letter-spacing:.1em; color:var(--turq); }
+  .card p { margin:6px 0 0; font-size:14px; color:var(--dim); }
+  ol { padding-left:20px; } li { margin-bottom:8px; }
+  code { font:13px ui-monospace, Menlo, monospace; background:#0f1311; border:1px solid var(--line); padding:1px 5px; border-radius:4px; }
+  .small { font-size:13px; color:var(--dim); }
+  canvas { width:100%; height:180px; display:block; border-radius:10px; background:#070908; margin-top:20px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>ENJAMBRE<span>·</span>FM-1</h1>
+  <p class="lead">Insectos como agentes que se mueven en un campo orbital, cuántico o atómico. Un motor nuevo para Felucca en el M-VAVE FM-1, que se instala desde el navegador.</p>
+  <canvas id="c"></canvas>
+  <div class="btns">
+    <a class="btn main" href="webapp/installer/">Instalar __VERSION__</a>
+    <a class="btn" href="webapp/sim/">Probar en el navegador</a>
+    <a class="btn" href="firmware/__PKG__">Descargar .fwsc</a>
+    <a class="btn" href="webapp/editor/">Editor web</a>
+    <a class="btn" href="__SOURCE__">Código (GPL-3.0)</a>
+  </div>
+  <p class="small">Chrome o Edge en computador. SHA-256 del paquete: <code>__SHA__</code></p>
+
+  <h2>Instalar</h2>
+  <ol>
+    <li><b>Conecta</b> el FM-1 por USB, directo al computador, y abre el <a href="webapp/installer/">instalador</a> en Chrome o Edge.</li>
+    <li><b>Instala</b>: pulsa INSTALAR y permite MIDI (SysEx). No desconectes el FM-1 mientras escribe.</li>
+    <li><b>Toca</b>: en PRESETS gira la perilla ENG hasta el final de la lista: <code>ENJAMB</code>. Prueba GRILLOS, KEPLER, LUCIERNAG, NUBE PSI, ATOMO H o CIGARRAS.</li>
+  </ol>
+
+  <h2>Los campos</h2>
+  <div class="grid">
+    <div class="card"><b>ORBITA</b><p>1 a 3 masas que giran entre sí. Órbita interna, nota alta; velocidad, brillo; un leve Doppler.</p></div>
+    <div class="card"><b>CUANTO</b><p>Una partícula en una caja. Los insectos siguen |ψ|²; la densidad de probabilidad se vuelve armonía. Tocar una nota la colapsa.</p></div>
+    <div class="card"><b>ATOMO</b><p>Electrones en capas de Bohr, con las líneas del hidrógeno. Tocar una nota los hace saltar de capa.</p></div>
+  </div>
+  <p class="small" style="margin-top:12px">EDIT 1 · CAMP AGEN COHE TEMP — EDIT 2 · MASA ESPC CHIR COLP. Perillas HOME: AGEN, COHE, TEMP, CHIR. MIDI: CC74 → TEMP, CC71 → COHE. Los chirridos se sincronizan como grillos (Kuramoto) y su ritmo sigue la ley de Dolbear.</p>
+
+  <h2>Carga del procesador</h2>
+  <p class="dim">Un regulador dentro del motor lee la carga real del FM-1: suma insectos bajo el 62 %, los cede sobre el 72 % y recorta un cuarto sobre el 80 %, antes de que Felucca tenga que callar voces (85 %). Puedes ver la carga en MENU › SYSTEM › INFO.</p>
+
+  <h2>Volver al firmware oficial</h2>
+  <p class="dim">En el <a href="webapp/installer/">instalador</a>, «Volver al firmware oficial» respalda tu música y escribe la V15 oficial que tú eliges (verificada por su SHA-256 en el navegador). Para la V16, usa el actualizador oficial de M-VAVE, M-UPGRADE (<a href="https://www.m-vave.com/download">m-vave.com/download</a>). Si una actualización se corta, pulsa INSTALAR otra vez: retoma el modo de actualización.</p>
+
+  <h2>Créditos</h2>
+  <p class="small">ENJAMBRE: Ph.D. Mauricio Vásquez Arias, profesor titular – investigador asociado, Escuela de Artes y Humanidades, Universidad EAFIT. Construido sobre <a href="https://github.com/hugelton/Felucca">Felucca</a> de Leo Kuroshita (Hügelton Instruments), GPL-3.0, sin afiliación con sus autores. M-VAVE y FM-1 son marcas de sus dueños. Software experimental, sin garantía.</p>
+</main>
+<script>
+/* un pequeño enjambre decorativo */
+const c = document.getElementById('c'), g = c.getContext('2d');
+let W, H; const N = 90, P = [];
+function size() { W = c.width = c.clientWidth * devicePixelRatio; H = c.height = c.clientHeight * devicePixelRatio; }
+size(); addEventListener('resize', size);
+for (let i = 0; i < N; i++) { const r = .15 + Math.random() * .8, a = Math.random() * 6.28; P.push({ r, a, w: .004 / Math.pow(r, 1.5), h: Math.random() }); }
+(function tick(t) {
+  g.fillStyle = 'rgba(7,9,8,.25)'; g.fillRect(0, 0, W, H);
+  for (const p of P) {
+    p.a += p.w;
+    const x = W / 2 + Math.cos(p.a) * p.r * W * .45, y = H / 2 + Math.sin(p.a) * p.r * H * .42;
+    const on = (Math.sin(t / 180 + p.h * 6) + 1) / 2;
+    g.fillStyle = `hsla(${30 + p.r * 160},80%,${45 + on * 25}%,${.3 + on * .7})`;
+    g.beginPath(); g.arc(x, y, (1.5 + on * 3) * devicePixelRatio, 0, 7); g.fill();
+  }
+  requestAnimationFrame(tick);
+})(0);
+</script>
+</body>
+</html>

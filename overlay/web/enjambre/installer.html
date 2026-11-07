@@ -1,0 +1,292 @@
+<!doctype html>
+<!-- SPDX-License-Identifier: GPL-3.0-only
+     Instalador web de ENJAMBRE (Mauricio Vásquez Arias, Universidad EAFIT), adaptado del instalador de Felucca
+     (Copyright (C) 2026 Leo Kuroshita (@kurogedelic), Hügelton Instruments). El protocolo y las comprobaciones
+     son los de Felucca (fm1pkg.js, fm1ota.js, fm1backup.js), sin cambios. -->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instalar ENJAMBRE · FM-1</title>
+<style>
+  :root { --bg:#0b0d0c; --panel:#131715; --line:#26302b; --fg:#e6e2d6; --dim:#8d978f; --amber:#f2b63c; --turq:#3fd1b8; --red:#ef5b4c; }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif; }
+  main { max-width:560px; margin:0 auto; padding:40px 18px 60px; }
+  h1 { font:600 22px/1.2 ui-monospace, "SF Mono", Menlo, monospace; letter-spacing:.18em; margin:0 0 6px; }
+  h1 span { color:var(--amber); }
+  .ver { font:13px ui-monospace, Menlo, monospace; color:var(--dim); margin:0 0 26px; }
+  .lang { float:right; font-size:13px; color:var(--dim); cursor:pointer; text-decoration:underline; background:none; border:0; padding:0; }
+  p { margin:0 0 14px; }
+  ol { padding-left:20px; margin:0 0 18px; } li { margin-bottom:6px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px; margin:0 0 18px; }
+  .warn { border-color:#5a3b17; }
+  button.main { font:600 15px ui-monospace, Menlo, monospace; letter-spacing:.1em; background:var(--amber); color:#111; border:0; padding:12px 26px; border-radius:30px; cursor:pointer; }
+  button.sec { font:600 13px ui-monospace, Menlo, monospace; background:transparent; color:var(--fg); border:1px solid var(--line); padding:9px 16px; border-radius:8px; cursor:pointer; }
+  button:disabled { opacity:.3; cursor:default; }
+  .small { color:var(--dim); font-size:13px; }
+  a { color:inherit; }
+  progress { width:100%; height:6px; margin-top:16px; accent-color:var(--turq); }
+  #status { margin-top:12px; min-height:1.6em; font-weight:600; }
+  pre { color:var(--dim); font-size:11px; white-space:pre-wrap; margin-top:12px; max-height:180px; overflow:auto; }
+  details summary { cursor:pointer; font-weight:600; }
+  details[open] summary { margin-bottom:10px; }
+  input[type=file] { color:var(--dim); font-size:13px; margin-top:6px; }
+</style>
+</head>
+<body>
+<main>
+  <button class="lang" id="lang"></button>
+  <h1>ENJAMBRE<span>·</span>FM-1</h1>
+  <p class="ver" id="ver"></p>
+  <p data-t="intro"></p>
+  <ol>
+    <li data-t="s1"></li>
+    <li data-t="s2"></li>
+    <li data-t="s3"></li>
+  </ol>
+  <div class="card warn">
+    <p data-t="warn"></p>
+    <p class="small" data-t="beta"></p>
+    <p class="small"><span data-t="brick"></span>
+      <a href="https://github.com/kurogedelic/FM-1-transporter" target="_blank" rel="noopener">FM-1-transporter</a></p>
+  </div>
+  <p><button class="main" id="go" disabled data-t="install"></button></p>
+  <progress id="bar" max="100" value="0"></progress>
+  <p id="status"></p>
+
+  <details class="card" style="margin-top:22px">
+    <summary data-t="stockTitle"></summary>
+    <p class="small" data-t="back"></p>
+    <p class="small"><a href="https://www.m-vave.com/download" target="_blank" rel="noopener">M-VAVE · Downloads</a></p>
+    <p><label><span data-t="stockFile"></span><br><input id="stock-file" type="file" accept=".fwsc"></label></p>
+    <p class="small" id="stock-msg"></p>
+    <p><button class="sec" id="stock-go" disabled data-t="stockGo"></button></p>
+    <p class="small" data-t="stockBackup"></p>
+    <p class="small"><label><input id="stock-recovery" type="checkbox"> <span data-t="stockRecovery"></span></label></p>
+  </details>
+
+  <pre id="log"></pre>
+  <p><a href="../editor/" data-t="editor"></a> · <a href="../sim/" data-t="sim"></a> · <a href="../../" data-t="home"></a></p>
+  <p class="small">ENJAMBRE: Mauricio Vásquez Arias, Escuela de Artes y Humanidades, Universidad EAFIT. <span data-t="based"></span>
+    Felucca by Leo Kuroshita (@kurogedelic), <a href="https://hugelton.com" target="_blank" rel="noopener">Hügelton Instruments</a>, with its PHASE engine and drum voices, the Hügelton Sample Pack (CC0 1.0) and Fukiai icons (MIT).
+    Font: Inter Tight (SIL OFL 1.1). Samples: VSCO-2 CE and VCSL (CC0 1.0). FM6: msfa from Dexed (Apache-2.0).
+    The package also holds three JieLi AC79 SDK files, uboot.boot, cfg_tool.bin and eq_cfg_hw.bin (JieLi Technology, Apache-2.0).
+    <a href="../../firmware/LICENSING.md">Licencias</a>: <a href="../../firmware/LICENSE">GPL-3.0</a>, <a href="../../firmware/LICENSES/Apache-2.0.txt">Apache-2.0</a>, <a href="../../firmware/LICENSES/">todas</a>.
+    M-VAVE y FM-1 son marcas de sus dueños; este proyecto no está afiliado a M-VAVE ni a Hügelton Instruments.
+    <span data-t="license"></span> <a id="src" href="https://github.com/hugelton/Felucca" target="_blank" rel="noopener">código fuente</a></p>
+</main>
+<script type="module">
+/*LIB*/
+const $ = (id) => document.getElementById(id);
+/* la V16 oficial (FM-1_016): se reconoce pero no se escribe desde aquí (Felucca solo verifica el formato de la V15) */
+const STOCK_V16_SHA256 = "d017fb65e70aca97ee29d944470c3515a74581df5c0576bf70de917c7b2b61d5";
+const TEXT = {
+  es: {
+    intro: "Instala ENJAMBRE en tu M-VAVE FM-1 desde el navegador: insectos como agentes en un campo orbital, cuántico o atómico, como un motor más de Felucca.",
+    s1: "Conecta el FM-1 por USB, directo al computador (sin hubs). Cable de datos.",
+    s2: "Abre esta página en Chrome o Edge y cierra otras apps que usen MIDI.",
+    s3: "Pulsa INSTALAR y acepta el permiso de MIDI (SysEx). Tarda unos minutos.",
+    warn: "No desconectes el USB ni cierres la página mientras escribe.",
+    beta: "ENJAMBRE es experimental y no ha pasado por las pruebas en hardware de Felucca. El autor no se hace responsable si tu FM-1 se daña o falla por usar este firmware. Úsalo bajo tu propio riesgo.",
+    brick: "Si una instalación falla y el FM-1 ya no arranca, vuelve a pulsar INSTALAR: el instalador retoma el modo de actualización. Si ni así aparece, la recuperación necesita un Transporter:",
+    install: "INSTALAR", other: "English",
+    editor: "Editor web", sim: "Probar en el navegador", home: "Inicio",
+    based: "Basado en Felucca, sin afiliación con sus autores.",
+    back: "Descarga la V15 oficial de M-VAVE y elige el FM-1.fwsc sin modificar. El archivo se verifica aquí, en tu navegador; no se envía a ningún servidor. Para volver a la V16, usa el actualizador oficial de M-VAVE (M-UPGRADE): Felucca 1.7 o posterior lo acepta.",
+    stockTitle: "Volver al firmware oficial", stockFile: "FM-1.fwsc oficial (V15)", stockGo: "Respaldar y volver a la V15 oficial",
+    stockBackup: "Primero se guardan en el computador la música actual, la guardada, los bancos de sonido, las muestras y los ajustes. Para restaurarlos, reinstala ENJAMBRE o Felucca y usa el editor.",
+    stockRecovery: "Retomar una actualización interrumpida: ya guardé un respaldo completo en este computador",
+    stockValid: "V15 oficial verificada", stockConfirm: "¿Se guardó el archivo de respaldo en este computador? Si continúas, el FM-1 vuelve a la V15 oficial. La V15 oficial no abre la música de Felucca.",
+    stockV16: "Este archivo es la V16 oficial de M-VAVE (verificada). Este instalador no escribe la V16: Felucca solo valida la disposición de la V15. Para volver a la V16 usa M-UPGRADE, el actualizador oficial de M-VAVE (m-vave.com/download), con el FM-1 conectado.",
+    stockNeedBackup: "En modo de actualización no se puede hacer respaldo. Marca «retomar» solo si ya guardaste uno.",
+    stockUnsupported: "Este firmware no admite el respaldo completo. Instala primero ENJAMBRE o el Felucca actual.",
+    backup: "Guardando el respaldo completo ", stockError: "No se pudo verificar el archivo oficial: ",
+    nomidi: "Este navegador no puede hacerlo. Abre la página en Chrome o Edge (en computador).", loadfail: "No se pudo cargar: ",
+    start: "Empezando", verify: "Verificando", loader: "Pasando al modo de actualización", write: "Escribiendo",
+    reboot: "Reiniciando", done: "Listo. Busca ENJAMB al final de la lista de motores (perilla ENG en PRESETS).", doneStock: "Listo: el FM-1 tiene de nuevo la V15 oficial.", stopped: "Se detuvo. Reconecta el USB y pulsa INSTALAR otra vez.",
+    error: "Error: ",
+    denied: "No se permitió MIDI (SysEx). Permítelo en la configuración del sitio (barra de direcciones) y pulsa otra vez.",
+    notfound: "No encuentro el FM-1. Revisa el cable USB (de datos), cierra otras apps que usen MIDI y pulsa otra vez.",
+    model: "El equipo conectado no es un FM-1.",
+    lost: "Se perdió la conexión USB. Reconéctalo y pulsa otra vez.",
+    noloader: "No encuentro el FM-1 en modo de actualización. Reconecta el USB y pulsa INSTALAR otra vez (sigue en ese modo hasta terminar).",
+    noreturn: "El FM-1 no volvió. Apágalo y enciéndelo.",
+    mismatch: "Se escribió, pero el FM-1 informa otra versión: ",
+    badpkg: "El archivo para instalar está dañado. Recarga la página.",
+    leave: "Escribiendo. No cierres la página.",
+    license: "GPL-3.0, sin garantía.",
+  },
+  en: {
+    intro: "Install ENJAMBRE on your M-VAVE FM-1 from the browser: insects as agents in an orbital, quantum or atomic field, as one more Felucca engine.",
+    s1: "Connect the FM-1 by USB, directly to the computer (no hub). Use a data cable.",
+    s2: "Open this page in Chrome or Edge and close other apps that use MIDI.",
+    s3: "Press INSTALL and allow MIDI (SysEx). It takes a few minutes.",
+    warn: "Do not unplug the USB cable or close the page while writing.",
+    beta: "ENJAMBRE is experimental and has not been through Felucca's hardware testing. The author accepts no responsibility if your FM-1 is damaged or misbehaves because of this firmware. Use it at your own risk.",
+    brick: "If an install fails and the FM-1 no longer starts, press INSTALL again: the installer resumes update mode. If even that fails, recovery needs a Transporter:",
+    install: "INSTALL", other: "Español",
+    editor: "Web editor", sim: "Try it in the browser", home: "Home",
+    based: "Based on Felucca, not affiliated with its authors.",
+    back: "Get official V15 from M-VAVE and select the unmodified FM-1.fwsc. The browser validates it locally; it is not sent to a server. To return to V16, use M-VAVE's own updater (M-UPGRADE): Felucca 1.7 and later accept it.",
+    stockTitle: "Return to the official firmware", stockFile: "Official FM-1.fwsc (V15)", stockGo: "Back up and return to official V15",
+    stockBackup: "Current music, saved music, sound banks, samples and settings are saved first. To restore them, reinstall ENJAMBRE or Felucca and use the editor.",
+    stockRecovery: "Resume an interrupted update: I already saved a complete backup to this computer",
+    stockValid: "Official V15 verified", stockConfirm: "Has the backup file been saved to this computer? Continue to return to official V15. Official V15 cannot open Felucca music.",
+    stockV16: "This file is M-VAVE's official V16 (verified). This installer does not write V16: Felucca only validates the V15 layout. To return to V16, use M-UPGRADE, M-VAVE's official updater (m-vave.com/download), with the FM-1 connected.",
+    stockNeedBackup: "An update loader cannot export a backup. Only select resume if you already saved a complete backup.",
+    stockUnsupported: "This firmware does not support complete backups. Install ENJAMBRE or the current Felucca first.",
+    backup: "Saving complete backup ", stockError: "Cannot validate official firmware: ",
+    nomidi: "This browser cannot do it. Open the page in Chrome or Edge (on a computer).", loadfail: "Could not load: ",
+    start: "Starting", verify: "Verifying", loader: "Switching to update mode", write: "Writing",
+    reboot: "Restarting", done: "Done. ENJAMB is last in the engine list (ENG knob on PRESETS).", doneStock: "Done: the FM-1 runs official V15 again.", stopped: "Stopped. Replug the USB cable and press INSTALL again.",
+    error: "Error: ",
+    denied: "MIDI (SysEx) access was not allowed. Allow MIDI in the site settings (address bar) and press again.",
+    notfound: "FM-1 not found. Check the USB cable (a data cable), close other apps that use MIDI, and press again.",
+    model: "The connected device is not an FM-1.",
+    lost: "The USB connection was lost. Replug it and press again.",
+    noloader: "The FM-1 in update mode was not found. Replug the USB cable and press INSTALL again (it stays in update mode until it is finished).",
+    noreturn: "The FM-1 did not come back. Power-cycle it.",
+    mismatch: "Written, but the FM-1 reports another version: ",
+    badpkg: "The file to install is damaged. Reload the page.",
+    leave: "Writing. Do not close the page.",
+    license: "GPL-3.0, no warranty.",
+  },
+};
+let lang = (navigator.language || "es").toLowerCase().startsWith("en") ? "en" : "es";
+const t = (k) => TEXT[lang][k];
+let lastKey = null, lastArg = "";
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach((e) => { e.textContent = t(e.dataset.t); });
+  $("lang").textContent = t("other");
+  if (lastKey) $("status").textContent = t(lastKey) + lastArg;
+}
+$("lang").addEventListener("click", () => { lang = lang === "es" ? "en" : "es"; applyLang(); });
+applyLang();
+const sayK = (k, arg = "") => { lastKey = k; lastArg = arg; $("status").textContent = t(k) + arg; };
+const say = (txt) => { lastKey = null; $("status").textContent = txt; };
+const log = (s) => { $("log").textContent += s + "\n"; };
+let image = null;
+const meta = /*META*/;
+$("ver").textContent = `${meta.version} · ${meta.product}`;
+if (meta.source) $("src").href = meta.source;
+
+let writing = false, stock = null, stockFileEpoch = 0;
+const lockInstaller = (on) => { writing = on; $("go").disabled = on || !image; $("stock-go").disabled = on || !stock; $("stock-file").disabled = on; $("stock-recovery").disabled = on; };
+window.addEventListener("beforeunload", (e) => { if (writing) { e.preventDefault(); e.returnValue = t("leave"); } });
+
+(async () => {
+  if (!navigator.requestMIDIAccess) { sayK("nomidi"); return; }
+  try {
+    const r = await fetch(meta.pkg);
+    if (!r.ok) throw new Error(`${meta.pkg}: HTTP ${r.status}`);
+    const pkg = new Uint8Array(await r.arrayBuffer());
+    if (productOf(pkg) !== meta.product) { sayK("badpkg"); return; }
+    if (meta.sha256 && await sha256hex(pkg) !== meta.sha256) { sayK("badpkg"); return; }
+    image = logicalImage(pkg);
+    say(`ENJAMBRE ${meta.version}`);
+    $("go").disabled = false;
+  } catch (e) { sayK("loadfail", e.message); }
+})();
+
+$("go").addEventListener("click", async () => {
+  if (writing) return;
+  lockInstaller(true);
+  let midi;
+  try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
+  catch (e) { sayK("denied"); lockInstaller(false); return; }
+  try {
+    const up = new Updater(midi, log);
+    const total = 74 + 1167;
+    const step = (k, a) => {
+      log(`${k} ${a ?? ""}`);
+      if (k === "start") sayK("start");
+      if (k === "verify") { sayK("verify"); $("bar").value = Math.min(100, (a / total) * 100); }
+      if (k === "loader") sayK("loader");
+      if (k === "write") { sayK("write"); $("bar").value = Math.min(99, ((74 + a) / total) * 100); }
+      if (k === "reboot") sayK("reboot");
+      if (k === "done") { $("bar").value = 100; sayK("done"); }
+    };
+    const ota = await up.find((id) => /^ota-/i.test(id.model));
+    if (ota) {
+      ota.link.close();
+      sayK((await up.resume(image, step, meta.product)) ? "done" : "stopped");
+    } else {
+      await up.install(image, meta.product, step);
+    }
+  } catch (e) {
+    if (e && e.code && TEXT[lang][e.code]) sayK(e.code, e.detail || "");
+    else sayK("error", e && e.message);
+    log(String(e && e.stack || e));
+  }
+  lockInstaller(false);
+});
+
+$("stock-file").addEventListener("change", async () => {
+  const epoch = ++stockFileEpoch, file = $("stock-file").files[0]; stock = null; lockInstaller(false);
+  $("stock-msg").textContent = "";
+  if (!file) return;
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    if (await sha256hex(bytes) === STOCK_V16_SHA256) {
+      if (epoch === stockFileEpoch) { $("stock-msg").textContent = t("stockV16"); say(""); }
+      return;
+    }
+    if (file.size !== STOCK_V15_SIZE) throw new Error("FM-1 V15 / FM-1.fwsc");
+    const verified = await validateStockPackage(bytes);
+    if (epoch !== stockFileEpoch) return;
+    stock = verified; sayK("stockValid"); lockInstaller(false);
+  } catch (e) { if (epoch === stockFileEpoch) sayK("stockError", e.message); }
+});
+function saveArchive(archive) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(archive)], {type:"application/json"}));
+  const a = document.createElement("a"); a.href = url; a.download = `ENJAMBRE-respaldo-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function archiveInfo(a) {
+  let pos = a.indexOf(0); if (pos < 0) throw new Error("Invalid INFO");
+  const version = String.fromCharCode(...a.slice(0,pos)); pos++;
+  const engines = a[pos]; pos += 5;
+  for (let i = 0; i < engines; i++) { const end = a.indexOf(0,pos); if (end < 0) throw new Error("Invalid INFO"); pos = end + 1; }
+  const ext = a.slice(pos + 1);
+  const supported = /^FELUCCA /i.test(version) && ext[0] === 16 && ext[1] === 0x55 && ext[2] === 1 &&
+    ext[4] === 0x4d && ext[5] === 1 && ext[8] === 0x42 && ext[9] === 1 && (ext[10] & 1);
+  return {version,supported};
+}
+$("stock-go").addEventListener("click", async () => {
+  if (!stock || writing) return;
+  const selected = stock; lockInstaller(true);
+  let link = null;
+  try {
+    let midi;
+    try { midi = await navigator.requestMIDIAccess({sysex:true}); } catch (e) { sayK("denied"); return; }
+    const up = new Updater(midi, log);
+    const step = (k, n) => { log(`${k} ${n ?? ""}`); if (["start","verify","loader","write","reboot"].includes(k)) sayK(k); if (k === "done") { $("bar").value = 100; sayK("doneStock"); } };
+    const loader = await up.find(id => id.model === "ota-FM-1");
+    if (loader) {
+      loader.link.close();
+      if (!$("stock-recovery").checked) { sayK("stockNeedBackup"); return; }
+      if (!confirm(t("stockConfirm"))) return;
+      sayK(await up.resume(selected.image, step, selected.product) ? "doneStock" : "stopped");
+    } else {
+      const device = await up.find(id => id.model === "FM-1");
+      if (!device) { sayK("notfound"); return; }
+      const input = device.link.input, output = device.link.output; device.link.close();
+      link = new BackupConnection(input, output);
+      const info = archiveInfo(await link.request([1,[]]));
+      if (!info.supported) { sayK("stockUnsupported"); return; }
+      const archive = await captureBackup((r,o) => link.request(r,o), info.version,
+        (done,total) => sayK("backup", `${Math.round(done / Math.max(1,total) * 100)}%`));
+      saveArchive(archive); link.close(); link = null;
+      if (!confirm(t("stockConfirm"))) return;
+      await up.install(selected.image, selected.product, step);
+    }
+  } catch (e) {
+    if (e.code && TEXT[lang][e.code]) sayK(e.code,e.detail || ""); else sayK("error",e.message);
+    log(String(e.stack || e));
+  } finally { if (link) link.close(); lockInstaller(false); }
+});
+</script>
+</body>
+</html>

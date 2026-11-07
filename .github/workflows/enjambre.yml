@@ -1,0 +1,112 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# ENJAMBRE: toma Felucca (hugelton/Felucca, commit fijo, con submódulos), le pone encima los archivos de overlay/,
+# compila el firmware (Linux x86-64: la toolchain de JieLi corre nativa), prueba el motor en el anfitrión de
+# Felucca, arma el sitio con el instalador web y lo publica en GitHub Pages.
+name: ENJAMBRE
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+env:
+  VERSION: "1.8.1-enjambre"
+  FELUCCA_REF: "a4f007c9211ea5b37298c01ff6d73430fe2cb96a"
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Este repositorio (los archivos de ENJAMBRE)
+        uses: actions/checkout@v4
+        with:
+          path: enjambre
+
+      - name: Felucca (con submódulos)
+        uses: actions/checkout@v4
+        with:
+          repository: hugelton/Felucca
+          ref: ${{ env.FELUCCA_REF }}
+          submodules: recursive
+          path: felucca
+
+      - name: Aplicar ENJAMBRE sobre Felucca
+        run: cp -rv enjambre/overlay/. felucca/
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Dependencias de Python
+        run: pip install Pillow fonttools
+
+      - name: Caché de la toolchain y del SDK de JieLi
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.jieli
+            ~/fw-AC79_AIoT_SDK
+          key: jieli-toolchain-ac79-v1.2.1
+
+      - name: Toolchain de JieLi
+        if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: felucca
+        run: sh tools/get_toolchain.sh "$HOME/.jieli"
+
+      - name: SDK AC79 (tres archivos)
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          git clone --depth 1 --filter=blob:none --sparse --branch AC79NN_SDK_V1.2.1_2023-12-13 \
+            https://gitee.com/Jieli-Tech/fw-AC79_AIoT_SDK.git "$HOME/fw-AC79_AIoT_SDK"
+          cd "$HOME/fw-AC79_AIoT_SDK"
+          git sparse-checkout set cpu/wl82/tools
+          ls -la cpu/wl82/tools/uboot.boot cpu/wl82/tools/cfg_tool.bin cpu/wl82/tools/cfg/eq_cfg_hw.bin
+
+      - name: Compilar el firmware
+        working-directory: felucca
+        run: ./build.sh --release "$VERSION"
+
+      - name: Probar el motor en el DSP de Felucca
+        working-directory: felucca
+        run: |
+          INC=$(find firmware -name '*.h' -printf '%h\n' | sort -u | sed 's/^/-I/' | tr '\n' ' ')
+          gcc -O2 -w -Ibuild/gen -Ifirmware/src $INC -o build/hostsim tests/hostsim.c -lm
+          for p in 0 1 2 3 4 5; do SECS=6 CHORD=3 PRESET=1 BENCH=1 ./build/hostsim 14 $p 0 build/enjambre_$p.wav; done
+
+      - name: Armar el sitio
+        working-directory: felucca
+        run: |
+          python3 web/enjambre/make_site_enjambre.py "build/felucca-$VERSION.fwsc" "$VERSION" ../_site \
+            "https://github.com/${{ github.repository }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: enjambre-${{ env.VERSION }}
+          path: |
+            _site/firmware/enjambre-*.fwsc
+            _site/firmware/SHA256SUMS
+            felucca/build/enjambre_*.wav
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-24.04
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
