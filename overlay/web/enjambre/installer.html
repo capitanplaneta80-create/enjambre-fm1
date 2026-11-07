@@ -79,6 +79,99 @@
 <script type="module">
 /*LIB*/
 const $ = (id) => document.getElementById(id);
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const normName = (n) => (n || "").replace(/^\s*\d+\s*-\s*/, "").replace(/^MIDI(IN|OUT)\d*\s*\((.*)\)\s*$/i, "$2").trim().toLowerCase();
+const NAME_OK = /fm-1|felucca|ota|composite|sinco|usb-midi|m-?vave|jieli|jl|wl8/i;
+let probeAll = false;
+class EnjUpdater extends Updater {
+  constructor(access, log) { super(access, log); this.known = new Set([...access.inputs.keys()]); }
+  ports() {
+    const f = (p) => `${p.name} [${p.state}]`;
+    return "entradas: " + ([...this.access.inputs.values()].map(f).join(", ") || "ninguna") +
+      " · salidas: " + ([...this.access.outputs.values()].map(f).join(", ") || "ninguna");
+  }
+  async refresh() { try { this.access = await navigator.requestMIDIAccess({ sysex: true }); } catch (e) {} }
+  async find(filter) {
+    const outs = [...this.access.outputs.values()].filter((o) => o.state !== "disconnected");
+    for (const input of this.access.inputs.values()) {
+      if (input.state === "disconnected") continue;
+      const fresh = !this.known.has(input.id);
+      if (!probeAll && !fresh && !NAME_OK.test(input.name || "")) continue;
+      const output = outs.find((o) => o.name === input.name) || outs.find((o) => normName(o.name) === normName(input.name)) ||
+        (fresh && outs.length === 1 ? outs[0] : null);
+      if (!output) { this.log(`sin salida para la entrada «${input.name}»`); continue; }
+      try { await input.open(); await output.open(); } catch (_) { continue; }
+      const link = new Link(input, output);
+      const id = await handshake(link, 2);
+      if (id) this.log(`responde «${input.name}»: ${id.text}`);
+      if (id && (!filter || filter(id))) return { link, id, name: input.name };
+      link.close();
+    }
+    return null;
+  }
+  async waitFor(filter, ms) {
+    const end = Date.now() + ms;
+    for (let k = 1; Date.now() < end; k++) {
+      const dev = await this.find(filter);
+      if (dev) return dev;
+      if (k % 4 === 0) { await this.refresh(); this.log("buscando… " + this.ports()); }
+      await wait(1000);
+    }
+    this.log("no apareció. " + this.ports());
+    return null;
+  }
+  async install(image, product, onStep) {
+    const step = onStep || (() => {});
+    const isOta = (id) => /^ota-/i.test(id.model);
+    const dev = await this.find((id) => !isOta(id));
+    if (!dev) throw fail("notfound", "FM-1 not found");
+    const [model] = product.split("_");
+    if (dev.id.model.toLowerCase() !== model.toLowerCase()) { dev.link.close(); throw fail("model", `${dev.id.text} / ${product}`); }
+    step("start", dev.id.text);
+    this.known = new Set([...this.access.inputs.keys()]);
+    dev.link.send(UPGRADE);
+    await wait(2000);
+    const s1 = await this.serve(dev.link, image, 0xE0000000, 8000, (n) => step("verify", n));
+    dev.link.close();
+    if (!s1.finished) throw fail(s1.lost ? "lost" : "stopped", `after ${s1.served} requests: nothing was written`);
+    step("loader");
+    await wait(3000);
+    this.known = new Set();                          /* todo lo que aparezca ahora puede ser el cargador */
+    const ota = await this.waitFor(isOta, 90000);
+    if (!ota) throw fail("noloader", "the update loader did not appear");
+    const s2 = await this.write(ota, image, step);
+    if (!s2.finished) throw fail(s2.lost ? "lost" : "stopped", `the loader stopped after ${s2.served} requests`);
+    step("reboot");
+    await wait(3000);
+    const back = await this.waitFor((id) => !isOta(id), 60000);
+    if (!back) throw fail("noreturn", "the device did not come back");
+    back.link.close();
+    if (back.id.text !== product) throw fail("mismatch", back.id.text, back.id.text);
+    step("done", back.id.text);
+    return back.id.text;
+  }
+  async resume(image, onStep, product = null) {
+    const isOta = (id) => /^ota-/i.test(id.model);
+    let ota = await this.find(isOta);
+    if (!ota) { const save = probeAll; probeAll = true; ota = await this.find(isOta); probeAll = save; }
+    if (!ota) return false;
+    const step = onStep || (() => {});
+    const result = await this.write(ota, image, step);
+    if (!result.finished) return false;
+    if (product) {
+      step("reboot");
+      await wait(3000);
+      const back = await this.waitFor((id) => !isOta(id), 60000);
+      if (!back) throw fail("noreturn", "no return");
+      back.link.close();
+      if (back.id.text !== product) throw fail("mismatch", back.id.text, back.id.text);
+      step("done", back.id.text);
+    }
+    return true;
+  }
+}
+
+
 /* la V16 oficial (FM-1_016): se reconoce pero no se escribe desde aquí (Felucca solo verifica el formato de la V15) */
 const STOCK_V16_SHA256 = "d017fb65e70aca97ee29d944470c3515a74581df5c0576bf70de917c7b2b61d5";
 const TEXT = {
@@ -197,7 +290,7 @@ $("go").addEventListener("click", async () => {
   try { midi = await navigator.requestMIDIAccess({ sysex: true }); }
   catch (e) { sayK("denied"); lockInstaller(false); return; }
   try {
-    const up = new Updater(midi, log);
+    const up = new EnjUpdater(midi, log);
     const total = 74 + 1167;
     const step = (k, a) => {
       log(`${k} ${a ?? ""}`);
@@ -261,7 +354,7 @@ $("stock-go").addEventListener("click", async () => {
   try {
     let midi;
     try { midi = await navigator.requestMIDIAccess({sysex:true}); } catch (e) { sayK("denied"); return; }
-    const up = new Updater(midi, log);
+    const up = new EnjUpdater(midi, log);
     const step = (k, n) => { log(`${k} ${n ?? ""}`); if (["start","verify","loader","write","reboot"].includes(k)) sayK(k); if (k === "done") { $("bar").value = 100; sayK("doneStock"); } };
     const loader = await up.find(id => id.model === "ota-FM-1");
     if (loader) {
